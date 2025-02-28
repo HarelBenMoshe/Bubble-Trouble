@@ -1,3 +1,4 @@
+import time
 from dbm import error
 
 import pygame
@@ -7,9 +8,13 @@ import math
 
 # Initialize pygame
 pygame.init()
+game_over=False
 clock = pygame.time.Clock()
 HEIGHT = 1000
 WIDTH = 1000
+# Define font for game-over message
+font = pygame.font.Font(None, 50)  # None = default font, size 50
+
 # Create game window
 screen = pygame.display.set_mode([WIDTH, HEIGHT])
 pygame.display.set_caption("Red Circle")
@@ -60,13 +65,17 @@ class Ball:
         self.x += self.x_speed
 
     def check_collision(self):
-        for i in range(0, 180, 5):  # Check the full circle
+        global game_over
+
+        for i in range(0, 360, 5):  # Check full circle
             radians = math.radians(i)
-            x_pixel = int(min(max(self.x + abs(self.radius * math.cos(radians)), 0), WIDTH - 1))
+            x_pixel = int(min(max(self.x + self.radius * math.cos(radians), 0), WIDTH - 1))
             y_pixel = int(min(max(self.y + self.radius * math.sin(radians), 0), HEIGHT - 1))
-            color = screen.get_at((x_pixel, y_pixel))[:3]
-            if color == (255,255,255):  # Directly compare with white
-                return True
+            color = screen.get_at((x_pixel, y_pixel))[:3]  # Get RGB color
+            if color == (255, 165, 0):  # Orange color of character
+                game_over = True
+        if abs(player.x_arrow - self.x) <= self.radius and self.radius+self.y >= player.y_arrow:
+            return True  # Arrow hit ball
         return False
 
     def ball_explosion(self):
@@ -101,14 +110,11 @@ class Player:
         self.x_center_mass = min(self.x_center_mass + 7, WIDTH - 30)  # Ensures it doesn't go right of WIDTH-30
 
     def draw_character(self):
-        pygame.draw.line(screen, self.character_color, (self.x_center_mass, self.y_center_mass),
-                         (self.x_center_mass + angle, HEIGHT), walls_thickness)
-        pygame.draw.line(screen, self.character_color, (self.x_center_mass, self.y_center_mass),
-                         (self.x_center_mass - angle, HEIGHT), walls_thickness)
-        triangle_points = [(self.x_center_mass + 30, self.y_center_mass), (self.x_center_mass - 30, self.y_center_mass),
-                           (self.x_center_mass, self.y_center_mass - 50)]
+        pygame.draw.line(screen, self.character_color, (self.x_center_mass, self.y_center_mass), (self.x_center_mass + angle, HEIGHT), walls_thickness)
+        pygame.draw.line(screen, self.character_color, (self.x_center_mass, self.y_center_mass),(self.x_center_mass - angle, HEIGHT), walls_thickness)
+        triangle_points = [(self.x_center_mass + 25, self.y_center_mass), (self.x_center_mass - 25, self.y_center_mass),(self.x_center_mass, self.y_center_mass - 50)]
         pygame.draw.polygon(screen, self.character_color, triangle_points, 0)
-        pygame.draw.circle(screen, self.character_color, (self.x_center_mass, self.y_center_mass - 70), 20)
+        pygame.draw.rect(screen, self.character_color,(self.x_center_mass - 10, self.y_center_mass - 60, 20, 20))
 
     def handle_arrow(self):
         if self.y_arrow<=0:
@@ -148,18 +154,13 @@ while running:
     clock.tick(60)
     screen.fill('black')
     walls = draw_walls()
-
+    player.draw_character()
     # Iterate over a copy of the list to prevent modification errors during iteration
     for ball in balls[:]:
         ball.draw()
         ball.update_pos()
         ball.y_speed = ball.check_gravity()
         ball.x_speed = ball.check_direction()
-    player.draw_character()
-
-    if player.fire:
-        player.handle_arrow()
-
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
@@ -174,8 +175,28 @@ while running:
         player.fire = True
     if player.fire:
         player.handle_arrow()
-
     pygame.display.flip()  # Update display
 
+    for ball in balls[:]:
+        ball.check_collision()  # checks if the ball hit the character
+        if game_over:
+            pygame.draw.line(screen, 'black', (player.x_arrow, HEIGHT-walls_thickness), (player.x_arrow, player.y_arrow),arrow_thickness)
+            player.draw_character()
+            text_surface = font.render("Ouch! You lost!", True, (255, 255, 255))
+            screen.blit(text_surface, (WIDTH // 2 - 100, HEIGHT // 2))
+            pygame.display.flip()
+
+            # Allow quitting during game over screen
+            wait_start = pygame.time.get_ticks()
+            waiting = True
+            while waiting and pygame.time.get_ticks() - wait_start < 3000:  # 3 seconds wait
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
+                        waiting = False
+                        running = False
+                pygame.time.delay(100)  # Small delay to prevent CPU hogging
+            running = False
+            continue
+            
 pygame.quit()
 sys.exit()
