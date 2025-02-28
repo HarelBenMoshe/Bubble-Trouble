@@ -1,6 +1,7 @@
 import pygame
 import sys
 import threading
+import math
 
 # Initialize pygame
 pygame.init()
@@ -11,6 +12,15 @@ WIDTH = 1000
 # Create game window
 screen = pygame.display.set_mode([WIDTH,HEIGHT])
 pygame.display.set_caption("Red Circle")
+
+def draw_walls():
+    left = pygame.draw.line(screen, 'white', (0,0), (0,HEIGHT), walls_thickness)
+    right = pygame.draw.line(screen, 'white', (WIDTH, 0), (WIDTH, HEIGHT), walls_thickness)
+    top =  pygame.draw.line(screen, 'white', (0, 0), (WIDTH, 0), walls_thickness)
+    bottom = pygame.draw.line(screen, 'white', (0, HEIGHT), (WIDTH, HEIGHT), walls_thickness)
+    wall_list=[left,right,bottom,top]
+    return wall_list
+
 
 
 class Ball:
@@ -29,7 +39,8 @@ class Ball:
         self.horizontal_limit=True
 
     def draw(self):
-        self.circle = pygame.draw.circle(screen, self.color, (self.x, self.y), self.radius)
+        if self.color != 'black':
+            self.circle = pygame.draw.circle(screen, self.color, (self.x, self.y), self.radius)
 
     def check_gravity(self):
         if self.y<HEIGHT-self.radius-(walls_thickness/2):
@@ -43,32 +54,35 @@ class Ball:
             self.x_speed = self.x_speed * -1
         return self.x_speed
 
-
     def update_pos(self):
         self.y+=self.y_speed
         self.x+=self.x_speed
 
-def draw_walls():
-    left = pygame.draw.line(screen, 'white', (0,0), (0,HEIGHT), walls_thickness)
-    right = pygame.draw.line(screen, 'white', (WIDTH, 0), (WIDTH, HEIGHT), walls_thickness)
-    top =  pygame.draw.line(screen, 'white', (0, 0), (WIDTH, 0), walls_thickness)
-    bottom = pygame.draw.line(screen, 'white', (0, HEIGHT), (WIDTH, HEIGHT), walls_thickness)
-    wall_list=[left,right,bottom,top]
-    return wall_list
+    def check_collision(self):
+        for i in range(0, 180, 5):
+            radians = math.radians(i)
+            x_pixel = int(min(max(self.x + self.radius * math.cos(radians), 0), WIDTH - 1))
+            y_pixel = int(min(max(self.y + self.radius * math.sin(radians), 0), HEIGHT - 1))
+            color = screen.get_at((x_pixel, y_pixel ))[:3]
+            if color==player.arrow_color and self.y<=HEIGHT-self.radius-walls_thickness/2:
+                self.color='black'
+                player.y_arrow=0; #force the arrow to eliminate himself
+
 
 class Player:
     def __init__(self,x_center_mass, y_center_mass):
         self.x_center_mass=x_center_mass
         self.y_center_mass=y_center_mass
         self.y_arrow=HEIGHT
+        self.arrow_color=(255,255,255)
         self.x_arrow=x_center_mass
         self.bool=False
 
     def move_left(self):
-        self.x_center_mass-=7
+        self.x_center_mass = max(self.x_center_mass - 7, 30)  # Ensures it doesn't go left of 30
 
     def move_right(self):
-        self.x_center_mass += 7
+        self.x_center_mass = min(self.x_center_mass + 7, WIDTH - 30)  # Ensures it doesn't go right of WIDTH-30
 
     def draw_character(self):
         pygame.draw.line(screen, 'white', (self.x_center_mass, self.y_center_mass), (self.x_center_mass + angle, HEIGHT), walls_thickness)
@@ -77,23 +91,24 @@ class Player:
         pygame.draw.polygon(screen,  'white', triangle_points, 0)
         pygame.draw.circle(screen, 'white', (self.x_center_mass, self.y_center_mass-70),20)
 
-    def shot_arrow(self):
+    def handle_arrow(self):
         if player.y_arrow <= 0:
-            pygame.draw.line(screen, 'black', (self.x_arrow, HEIGHT-walls_thickness), (self.x_arrow, 0+walls_thickness), arrow_thickness)
-            player.y_arrow=HEIGHT
-            player.bool=False
-            return
-        pygame.draw.line(screen, 'white',(self.x_arrow, HEIGHT), (self.x_arrow, self.y_arrow), arrow_thickness)
+            player.bool = False
+            self.arrow_color='black'
+        pygame.draw.line(screen, self.arrow_color,(self.x_arrow, HEIGHT), (self.x_arrow, self.y_arrow), arrow_thickness)
+        ball.check_collision()
+        if not player.bool:
+            player.y_arrow = HEIGHT
+            self.arrow_color='white'
         self.y_arrow = self.y_arrow-arrow_speed
-
 
 #game variables
 walls_thickness=10
 arrow_thickness=4
-ball1=Ball(500, 500, 30, 'red', 100, 0, 2,1 )
+ball=Ball(500, 500, 30, 'red', 100, 0, 2, 1)
 player=Player(500, 975)
 gravity=0.5
-arrow_speed=10
+arrow_speed=22
 angle=30
 
 
@@ -102,15 +117,15 @@ while running:
     clock.tick(60)
     screen.fill('black')
     walls = draw_walls()
-    ball1.draw()
-    ball1.update_pos()
-    ball1.y_speed = ball1.check_gravity()
-    ball1.x_speed = ball1.check_direction()
+    ball.draw()
+    ball.update_pos()
+    ball.y_speed = ball.check_gravity()
+    ball.x_speed = ball.check_direction()
     player.draw_character()
 
     if player.bool:
-        player.shot_arrow()
-        
+        player.handle_arrow()
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False  # Stops the loop properly
@@ -124,7 +139,6 @@ while running:
     if keys[pygame.K_SPACE] and not player.bool:
         player.x_arrow = player.x_center_mass
         player.bool = True
-
     pygame.display.flip()  # Update display
 
 pygame.quit()
