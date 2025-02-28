@@ -6,47 +6,46 @@ import math
 # Initialize pygame
 pygame.init()
 clock = pygame.time.Clock()
-
 HEIGHT = 1000
 WIDTH = 1000
 # Create game window
-screen = pygame.display.set_mode([WIDTH,HEIGHT])
+screen = pygame.display.set_mode([WIDTH, HEIGHT])
 pygame.display.set_caption("Red Circle")
 
+
 def draw_walls():
-    left = pygame.draw.line(screen, 'white', (0,0), (0,HEIGHT), walls_thickness)
+    left = pygame.draw.line(screen, 'white', (0, 0), (0, HEIGHT), walls_thickness)
     right = pygame.draw.line(screen, 'white', (WIDTH, 0), (WIDTH, HEIGHT), walls_thickness)
-    top =  pygame.draw.line(screen, 'white', (0, 0), (WIDTH, 0), walls_thickness)
+    top = pygame.draw.line(screen, 'white', (0, 0), (WIDTH, 0), walls_thickness)
     bottom = pygame.draw.line(screen, 'white', (0, HEIGHT), (WIDTH, HEIGHT), walls_thickness)
-    wall_list=[left,right,bottom,top]
+    wall_list = [left, right, bottom, top]
     return wall_list
 
 
-
 class Ball:
-    def __init__(self,x,y,radius,color,mass,y_speed,x_speed, id):
-        self.x= x
-        self.y=y
-        self.color=color
-        self.radius=radius
-        self.color=color
-        self.mass=mass
-        self.y_speed=y_speed
+    def __init__(self, x, y, radius, color, mass, y_speed, x_speed):
+        self.x = x
+        self.y = y
+        self.color = color
+        self.radius = radius
+        self.color = color
+        self.mass = mass
+        self.y_speed = y_speed
         self.x_speed = x_speed
-        self.id=id
-        self.circle=''
-        self.vertical_limit=False
-        self.horizontal_limit=True
+        self.id = id
+        self.circle = ''
+        self.vertical_limit = False
+        self.horizontal_limit = True
 
     def draw(self):
         if self.color != 'black':
             self.circle = pygame.draw.circle(screen, self.color, (self.x, self.y), self.radius)
 
     def check_gravity(self):
-        if self.y<HEIGHT-self.radius-(walls_thickness/2):
-            self.y_speed+=gravity
+        if self.y < HEIGHT - self.radius - (walls_thickness / 2):
+            self.y_speed += gravity
         else:
-            self.y_speed=self.y_speed * -1
+            self.y_speed = self.y_speed * -1
         return self.y_speed
 
     def check_direction(self):
@@ -55,28 +54,43 @@ class Ball:
         return self.x_speed
 
     def update_pos(self):
-        self.y+=self.y_speed
-        self.x+=self.x_speed
+        self.y += self.y_speed
+        self.x += self.x_speed
 
     def check_collision(self):
         for i in range(0, 180, 5):
             radians = math.radians(i)
             x_pixel = int(min(max(self.x + self.radius * math.cos(radians), 0), WIDTH - 1))
             y_pixel = int(min(max(self.y + self.radius * math.sin(radians), 0), HEIGHT - 1))
-            color = screen.get_at((x_pixel, y_pixel ))[:3]
-            if color==player.arrow_color and self.y<=HEIGHT-self.radius-walls_thickness/2:
-                self.color='black'
-                player.y_arrow=0; #force the arrow to eliminate himself
+            color = screen.get_at((x_pixel, y_pixel))[:3]
+            if color == player.arrow_color and self.y <= HEIGHT - self.radius - walls_thickness / 2:
+                player.y_arrow = 0 # force the arrow to eliminate himself
+                return True
+        return False
+
+    def ball_explosion(self):
+        self.color='black'
+        if self.radius > 10:  # Only split if the ball is big enough
+            new_radius = self.radius // 2  # Each new ball is half the size
+            new_speed = abs(self.y_speed)  # Ensure the new balls move upwards
+
+            # Create two new balls with opposite x directions
+            ball_left, ball_right = (
+                Ball(self.x - new_radius, self.y, new_radius, 'blue', 50, -new_speed, -2),
+                Ball(self.x + new_radius, self.y, new_radius, 'blue', 50, -new_speed, 2,)
+            )
+            return [ball_left, ball_right]  # Return the new balls
+        return []  # If the ball is too small, return an empty list (disappear)
 
 
 class Player:
-    def __init__(self,x_center_mass, y_center_mass):
-        self.x_center_mass=x_center_mass
-        self.y_center_mass=y_center_mass
-        self.y_arrow=HEIGHT
-        self.arrow_color=(255,255,255)
-        self.x_arrow=x_center_mass
-        self.bool=False
+    def __init__(self, x_center_mass, y_center_mass):
+        self.x_center_mass = x_center_mass
+        self.y_center_mass = y_center_mass
+        self.y_arrow = HEIGHT
+        self.arrow_color = (255, 255, 255)
+        self.x_arrow = x_center_mass
+        self.bool = False
 
     def move_left(self):
         self.x_center_mass = max(self.x_center_mass - 7, 30)  # Ensures it doesn't go left of 30
@@ -85,52 +99,64 @@ class Player:
         self.x_center_mass = min(self.x_center_mass + 7, WIDTH - 30)  # Ensures it doesn't go right of WIDTH-30
 
     def draw_character(self):
-        pygame.draw.line(screen, 'white', (self.x_center_mass, self.y_center_mass), (self.x_center_mass + angle, HEIGHT), walls_thickness)
-        pygame.draw.line(screen, 'white', (self.x_center_mass, self.y_center_mass), (self.x_center_mass - angle, HEIGHT), walls_thickness)
-        triangle_points = [(self.x_center_mass+30, self.y_center_mass), (self.x_center_mass-30, self.y_center_mass), (self.x_center_mass, self.y_center_mass-50)]
-        pygame.draw.polygon(screen,  'white', triangle_points, 0)
-        pygame.draw.circle(screen, 'white', (self.x_center_mass, self.y_center_mass-70),20)
+        pygame.draw.line(screen, 'white', (self.x_center_mass, self.y_center_mass),
+                         (self.x_center_mass + angle, HEIGHT), walls_thickness)
+        pygame.draw.line(screen, 'white', (self.x_center_mass, self.y_center_mass),
+                         (self.x_center_mass - angle, HEIGHT), walls_thickness)
+        triangle_points = [(self.x_center_mass + 30, self.y_center_mass), (self.x_center_mass - 30, self.y_center_mass),
+                           (self.x_center_mass, self.y_center_mass - 50)]
+        pygame.draw.polygon(screen, 'white', triangle_points, 0)
+        pygame.draw.circle(screen, 'white', (self.x_center_mass, self.y_center_mass - 70), 20)
 
     def handle_arrow(self):
         if player.y_arrow <= 0:
             player.bool = False
-            self.arrow_color='black'
-        pygame.draw.line(screen, self.arrow_color,(self.x_arrow, HEIGHT), (self.x_arrow, self.y_arrow), arrow_thickness)
-        ball.check_collision()
+            self.arrow_color = 'black'
+        pygame.draw.line(screen, self.arrow_color, (self.x_arrow, HEIGHT), (self.x_arrow, self.y_arrow),arrow_thickness)
+        for ball in balls[:]:
+            if ball.check_collision():
+                new_balls = ball.ball_explosion()  # Get new smaller balls
+                balls.remove(ball)  # Remove original ball
+                balls.extend(new_balls)  # Add new balls to the list
         if not player.bool:
             player.y_arrow = HEIGHT
-            self.arrow_color='white'
-        self.y_arrow = self.y_arrow-arrow_speed
+            self.arrow_color = 'white'
+        self.y_arrow = self.y_arrow - arrow_speed
 
-#game variables
-walls_thickness=10
-arrow_thickness=4
-ball=Ball(500, 500, 30, 'red', 100, 0, 2, 1)
-player=Player(500, 975)
-gravity=0.5
-arrow_speed=22
-angle=30
 
+# game variables
+walls_thickness = 10
+arrow_thickness = 4
+ball = Ball(500, 500, 30, 'red', 100, 0, 2)
+player = Player(500, 975)
+gravity = 0.5
+arrow_speed = 22
+angle = 30
+
+
+balls = [Ball(500, 500, 30, 'red', 100, 0, 2)]  # Start with one big ball
 
 running = True
 while running:
     clock.tick(60)
     screen.fill('black')
     walls = draw_walls()
-    ball.draw()
-    ball.update_pos()
-    ball.y_speed = ball.check_gravity()
-    ball.x_speed = ball.check_direction()
-    player.draw_character()
 
+    # Iterate over a copy of the list to prevent modification errors during iteration
+    for ball in balls[:]:
+        ball.draw()
+        ball.update_pos()
+        ball.y_speed = ball.check_gravity()
+        ball.x_speed = ball.check_direction()
+
+    player.draw_character()
     if player.bool:
         player.handle_arrow()
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            running = False  # Stops the loop properly
+            running = False
 
-    # Continuous key press check (must be outside the event loop)
     keys = pygame.key.get_pressed()
     if keys[pygame.K_LEFT]:
         player.move_left()
@@ -139,7 +165,8 @@ while running:
     if keys[pygame.K_SPACE] and not player.bool:
         player.x_arrow = player.x_center_mass
         player.bool = True
+
     pygame.display.flip()  # Update display
 
 pygame.quit()
-sys.exit()  # ✅ Exits the program cleanly
+sys.exit()
