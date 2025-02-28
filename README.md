@@ -1,4 +1,3 @@
-# Bubble-Trouble
 import pygame
 import sys
 import threading
@@ -61,8 +60,9 @@ class Player:
     def __init__(self,x_center_mass, y_center_mass):
         self.x_center_mass=x_center_mass
         self.y_center_mass=y_center_mass
-        self.y_arrow=y_center_mass
+        self.y_arrow=HEIGHT
         self.x_arrow=x_center_mass
+        self.bool=False
 
     def move_left(self):
         self.x_center_mass-=7
@@ -78,8 +78,13 @@ class Player:
         pygame.draw.circle(screen, 'white', (self.x_center_mass, self.y_center_mass-70),20)
 
     def shot_arrow(self):
-                pygame.draw.line(screen, 'white',(self.x_arrow, self.y_center_mass), (self.x_arrow, self.y_arrow), arrow_thickness)
-                self.y_arrow = self.y_arrow-arrow_speed
+        if player.y_arrow <= 0:
+            pygame.draw.line(screen, 'black', (self.x_arrow, HEIGHT-walls_thickness), (self.x_arrow, 0+walls_thickness), arrow_thickness)
+            player.y_arrow=HEIGHT
+            player.bool=False
+            return
+        pygame.draw.line(screen, 'white',(self.x_arrow, HEIGHT), (self.x_arrow, self.y_arrow), arrow_thickness)
+        self.y_arrow = self.y_arrow-arrow_speed
 
 
 #game variables
@@ -90,7 +95,7 @@ player=Player(500, 975)
 gravity=0.5
 arrow_speed=10
 angle=30
-bool=True
+
 
 running = True
 while running:
@@ -103,30 +108,24 @@ while running:
     ball1.x_speed = ball1.check_direction()
     player.draw_character()
 
+    if player.bool:
+        player.shot_arrow()
+        
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False  # Stops the loop properly
-        if event.type==pygame.KEYDOWN:
-            if event.key==pygame.K_LEFT:
-                player.move_left()
-            if event.key == pygame.K_RIGHT:
-                player.move_right()
-            if bool:
-                if event.key == pygame.K_RETURN:
-                    player.x_arrow=player.x_center_mass
-                    bool=False
-                    player.shot_arrow()
-            if player.y_arrow!=player.y_center_mass:
-                player.shot_arrow()
-            if player.y_arrow == 0:
-                player.y_arrow=player.y_center_mass
-                bool=True
 
-    player.shot_arrow()
-
+    # Continuous key press check (must be outside the event loop)
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_LEFT]:
+        player.move_left()
+    if keys[pygame.K_RIGHT]:
+        player.move_right()
+    if keys[pygame.K_SPACE] and not player.bool:
+        player.x_arrow = player.x_center_mass
+        player.bool = True
 
     pygame.display.flip()  # Update display
 
 pygame.quit()
 sys.exit()  # ✅ Exits the program cleanly
-
