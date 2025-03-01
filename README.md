@@ -184,7 +184,7 @@ while running:
             player.draw_character()
             text_surface = font.render("Ouch! You lost!", True, (255, 255, 255))
             screen.blit(text_surface, (WIDTH // 2 - 100, HEIGHT // 2))
-            pygame.display.flip()
+            pygame.display.flip()  
 
             # Allow quitting during game over screen
             wait_start = pygame.time.get_ticks()
